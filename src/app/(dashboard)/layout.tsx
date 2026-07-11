@@ -9,6 +9,7 @@ import PerfilPage from "./perfil/page";
 import SolicitudesPage from "./solicitudes/page";
 import CambiosPage from "./cambios/page";
 import IncidenciasPage from "./incidencias/page";
+import BaseConocimientoPage from "./base-conocimiento/page";
 
 // AÑADIR NUEVA GESTIÓN AQUÍ - Importa la página de la nueva gestión
 
@@ -35,6 +36,8 @@ function DashboardContent() {
         return <CambiosPage />;
       case "incidencias":
         return <IncidenciasPage />;
+      case "base-conocimiento":
+        return <BaseConocimientoPage />;
       // AÑADIR NUEVA GESTIÓN AQUÍ - Agrega un case para la nueva sección
       default:
         return <PerfilPage />;

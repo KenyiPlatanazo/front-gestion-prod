@@ -12,6 +12,10 @@ import type {
 import type {
   Cambio, TipoCambio, CategoriaCambio, RiesgoCambio
 } from '@/types/cambio';
+import type {
+  SugerenciaDTO, BusquedaRequestDTO, ApiResponseDTO
+} from '@/types/base-conocimiento';
+import { baseConocimientoService } from '@/services/baseConocimientoService';
 
 // --- Incidencia (no backend, local-only mock) ---
 let incidencias: Incidente[] = [
@@ -82,4 +86,21 @@ export async function postCambio(data: {
 
 export async function getCambios(): Promise<Cambio[]> {
   return cambioService.listarTodos();
+}
+
+// --- Base Conocimiento (delegates to baseConocimientoService) ---
+export async function buscarBaseConocimiento(data: BusquedaRequestDTO): Promise<SugerenciaDTO[]> {
+  return baseConocimientoService.buscar(data);
+}
+
+export async function sugerirPorContexto(contexto: string): Promise<SugerenciaDTO[]> {
+  return baseConocimientoService.sugerirPorContexto(contexto);
+}
+
+export async function sugerirAlCerrarIncidente(incidenteId: number, categoria: string): Promise<SugerenciaDTO[]> {
+  return baseConocimientoService.sugerirAlCerrarIncidente(incidenteId, categoria);
+}
+
+export async function sugerirPorModulo(modulo: string): Promise<SugerenciaDTO[]> {
+  return baseConocimientoService.sugerirPorModulo(modulo);
 }

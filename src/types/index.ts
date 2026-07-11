@@ -6,3 +6,5 @@ export { permisosCambios, estadoColorsCambio, estadoLabelsCambio, tipoLabelsCamb
 
 export type { TipoAreaAfectada, Urgencia, Impacto, Prioridad as PrioridadIncidente, EstadoIncidente, Incidente, CrearIncidenteDTO, ActualizarEstadoDTO } from './incidente';
 export { tipoAreaLabels, tipoAreaColors, urgenciaLabels, urgenciaColors, impactoLabels, estadoLabels, estadoColors } from './incidente';
+
+export type { SugerenciaDTO, BusquedaRequestDTO, ApiResponseDTO } from './base-conocimiento';

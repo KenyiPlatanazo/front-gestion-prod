@@ -183,7 +183,8 @@ class SolicitudService {
         });
 
         if (!response.ok) {
-            throw new Error('Error al cargar las estadísticas');
+            const text = await response.text().catch(() => '');
+            throw new Error(`Error al cargar las estadísticas (${response.status}): ${text.slice(0, 200)}`);
         }
 
         const result: ApiResponse<EstadisticasSolicitudes> = await response.json();
