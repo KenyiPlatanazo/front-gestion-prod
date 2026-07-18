@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, MessageSquare, Lightbulb, FileText, TrendingUp, ClipboardList, Save, ArrowUpCircle, List, BarChart3, PlusCircle, Trash2, ThumbsUp, Eye } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { FileText, List, PlusCircle, Trash2, ThumbsUp, ThumbsDown, Eye, X, Search, XCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { useIncidentes } from "@/context/IncidenteContext";
-import { SugerenciaDTO, ArticuloKBSDTO, CrearArticuloDTO, ResumenKBSDTO, IncidenteCierreDTO } from '@/types/base-conocimiento';
+import { ArticuloKBSDTO, CrearArticuloDTO, SugerenciaDTO } from '@/types/base-conocimiento';
 import { baseConocimientoService } from '@/services/baseConocimientoService';
 
 const moduloColors: Record<string, string> = {
@@ -32,78 +31,34 @@ const estadoArticuloLabels: Record<string, string> = {
 
 export default function BaseConocimientoPage() {
   const { user } = useAuth();
-  const { incidentes, listarIncidentes } = useIncidentes();
-
-  // Estados
-  const [searchTerm, setSearchTerm] = useState("");
-  const [contextoBusqueda, setContextoBusqueda] = useState("");
-  const [sugerencias, setSugerencias] = useState<SugerenciaDTO[]>([]);
-  const [sugerenciaPorContexto, setSugerenciaPorContexto] = useState<SugerenciaDTO[]>([]);
-  const [moduloActivo, setModuloActivo] = useState<string | null>(null);
-  const [articulos, setArticulos] = useState<ArticuloKBSDTO[]>([]);
-  const [resumen, setResumen] = useState<ResumenKBSDTO | null>(null);
+  const [articulos, setArticulos] = useState<(ArticuloKBSDTO | SugerenciaDTO)[]>([]);
   const [loading, setLoading] = useState(false);
-  const [vista, setVista] = useState<"busqueda" | "listado" | "crear" | "detalle">("busqueda");
-  const [selectedArticulo, setSelectedArticulo] = useState<ArticuloKBSDTO | null>(null);
+  const [showCrear, setShowCrear] = useState(false);
+  const [detalle, setDetalle] = useState<ArticuloKBSDTO | null>(null);
   const [crearForm, setCrearForm] = useState<CrearArticuloDTO>({
     titulo: "", descripcion: "", solucion: "",
     tipoArticulo: "OPERATIVO", moduloOrigen: "INCIDENCIAS",
-    categoria: "", tags: [], afectaCocina: false, afectaSalon: false, afectaReservas: false,
-    creadoPor: user?.nombre || "",
+    categoria: "", afectaCocina: false, afectaSalon: false, afectaReservas: false, creadoPor: "",
   });
 
-  // Cargar incidentes al montar
-  useEffect(() => { listarIncidentes(); }, [listarIncidentes]);
-
-  // ==================== HANDLERS ====================
-
-  const abrirBaseConocimiento = async () => {
-    setLoading(true);
-    setModuloActivo(null);
-    try {
-      const r = await baseConocimientoService.buscar({ query: searchTerm, limit: 10 });
-      setSugerencias(r); setVista("busqueda");
-    } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  };
-
-  const obtenerSugerenciasPorContexto = async () => {
-    if (!contextoBusqueda.trim()) return;
-    try {
-      const r = await baseConocimientoService.sugerirPorContexto(contextoBusqueda);
-      setSugerenciaPorContexto(r);
-    } catch (e: any) { console.error(e); }
-  };
-
-  const sugerenciasPorModulo = async (modulo: string) => {
-    setLoading(true);
-    setModuloActivo(modulo);
-    try {
-      const r = await baseConocimientoService.sugerirPorModulo(modulo);
-      setSugerencias(r); setVista("busqueda");
-    } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  };
+  useEffect(() => { listarArticulos(); }, []);
 
   const listarArticulos = async () => {
     setLoading(true);
     try {
       const r = await baseConocimientoService.listarTodos();
-      setArticulos(r); setVista("listado");
-    } catch (e: any) { console.error(e); } finally { setLoading(false); }
-  };
-
-  const cargarResumen = async () => {
-    try {
-      const r = await baseConocimientoService.obtenerResumen();
-      setResumen(r);
-    } catch (e: any) { console.error(e); }
+      setArticulos(r);
+    } catch (e: any) { console.error("Error al listar:", e); }
+    finally { setLoading(false); }
   };
 
   const crearArticulo = async () => {
     try {
       await baseConocimientoService.crear(crearForm);
-      setCrearForm({ titulo: "", descripcion: "", solucion: "", tipoArticulo: "OPERATIVO", moduloOrigen: "INCIDENCIAS", categoria: "", tags: [], afectaCocina: false, afectaSalon: false, afectaReservas: false, creadoPor: user?.nombre || "" });
+      setCrearForm({ titulo: "", descripcion: "", solucion: "", tipoArticulo: "OPERATIVO", moduloOrigen: "INCIDENCIAS", categoria: "", afectaCocina: false, afectaSalon: false, afectaReservas: false, creadoPor: "" });
+      setShowCrear(false);
       await listarArticulos();
-    } catch (e: any) { console.error(e); }
+    } catch (e: any) { console.error("Error al crear:", e); }
   };
 
   const eliminarArticulo = async (id: number) => {
@@ -112,299 +67,235 @@ export default function BaseConocimientoPage() {
     catch (e: any) { console.error(e); }
   };
 
-  const votarArticulo = async (id: number) => {
-    try {
-      const a = await baseConocimientoService.votar(id, 5);
-      setArticulos(prev => prev.map(p => p.id === id ? a : p));
-    } catch (e: any) { console.error(e); }
+  const votarArticulo = async (id: number, tipo: "LIKE" | "DISLIKE") => {
+    try { const a = await baseConocimientoService.votar(id, tipo); setArticulos(prev => prev.map(p => p.id === id ? a : p)); }
+    catch (e: any) { console.error(e); }
   };
 
-  const cambiarEstado = async (id: number, estado: string) => {
-    try {
-      const a = await baseConocimientoService.cambiarEstado(id, estado);
-      setArticulos(prev => prev.map(p => p.id === id ? a : p));
-    } catch (e: any) { console.error(e); }
+  const [query, setQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const buscarArticulos = async (q?: string) => {
+    const term = (q ?? query).trim();
+    if (!term) { await listarArticulos(); return; }
+    setIsSearching(true); setLoading(true);
+    try { const r = await baseConocimientoService.buscar({ query: term, limit: 50 }); setArticulos(r as any); }
+    catch (e: any) { console.error(e); }
+    finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query.trim()) { setIsSearching(false); listarArticulos(); return; }
+    debounceRef.current = setTimeout(() => buscarArticulos(query), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
+  const limpiarBusqueda = async () => {
+    setQuery(""); setIsSearching(false); await listarArticulos();
+  };
+
+  const [editando, setEditando] = useState(false);
+  const [editForm, setEditForm] = useState<CrearArticuloDTO>({ titulo: "", descripcion: "", solucion: "", tipoArticulo: "OPERATIVO", moduloOrigen: "INCIDENCIAS", categoria: "", afectaCocina: false, afectaSalon: false, afectaReservas: false });
 
   const verDetalle = async (id: number) => {
-    try {
-      const a = await baseConocimientoService.obtenerPorId(id);
-      setSelectedArticulo(a); setVista("detalle");
-    } catch (e: any) { console.error(e); }
+    try { const a = await baseConocimientoService.obtenerPorId(id); setDetalle(a); setEditando(false); }
+    catch (e: any) { console.error(e); }
   };
 
-  // ==================== RENDER ====================
+  const iniciarEdicion = () => {
+    if (!detalle) return;
+    setEditForm({ titulo: detalle.titulo, descripcion: detalle.descripcion, solucion: detalle.solucion, tipoArticulo: detalle.tipoArticulo, moduloOrigen: detalle.moduloOrigen, categoria: detalle.categoria, afectaCocina: detalle.afectaCocina, afectaSalon: detalle.afectaSalon, afectaReservas: detalle.afectaReservas });
+    setEditando(true);
+  };
 
-  const renderCard = (s: SugerenciaDTO | ArticuloKBSDTO) => (
-    <div key={s.id} className="border border-zinc-800 rounded-lg p-4 hover:bg-amber-500/5 transition-colors">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="text-zinc-100 font-medium text-base">{s.titulo}</h3>
-        <div className={`px-2 py-0.5 rounded border text-xs uppercase tracking-widest ${moduloColors[s.moduloOrigen] || moduloColors.SOLICITUDES}`}>
-          {moduloLabels[s.moduloOrigen] || s.moduloOrigen}
-        </div>
-      </div>
-      <p className="text-zinc-400 text-sm line-clamp-2">{s.descripcion}</p>
-      <div className="flex items-center gap-4 text-xs text-zinc-500 flex-wrap mt-3">
-        <span>Rating: {s.rating}/5</span>
-        <span>Veces resuelto: {s.vecesResuelto}</span>
-      </div>
-    </div>
-  );
+  const guardarEdicion = async () => {
+    if (!detalle) return;
+    try { const a = await baseConocimientoService.actualizar(detalle.id, editForm); setDetalle(a); setEditando(false); await listarArticulos(); }
+    catch (e: any) { console.error(e); }
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="w-6 h-6 text-amber-500" />
           <h1 className="text-2xl font-bold text-zinc-100">Base de Conocimiento</h1>
-          <button onClick={cargarResumen} className="ml-2 p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-amber-400" title="Resumen"><BarChart3 className="w-4 h-4" /></button>
         </div>
         <div className="flex gap-2">
-          <button onClick={listarArticulos} className="flex items-center gap-2 px-3 py-2 bg-neutral-800 border border-zinc-700 rounded text-zinc-300 text-xs uppercase tracking-widest hover:bg-amber-500/10"><List className="w-3.5 h-3.5" /> Listar</button>
-          <button onClick={() => setVista("crear")} className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-500 text-xs uppercase tracking-widest hover:bg-amber-500/20"><PlusCircle className="w-3.5 h-3.5" /> Crear</button>
+          <button onClick={listarArticulos} className="flex items-center gap-2 px-4 py-2 bg-neutral-800 border border-zinc-700 rounded text-zinc-300 text-sm uppercase tracking-widest hover:bg-amber-500/10">
+            <List className="w-4 h-4" /> ACTUALIZAR
+          </button>
+          <button onClick={() => { setCrearForm(prev => ({ ...prev, creadoPor: user?.nombre || "" })); setShowCrear(true); }} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-500 text-sm uppercase tracking-widest hover:bg-amber-500/20">
+            <PlusCircle className="w-4 h-4" /> CREAR
+          </button>
         </div>
       </div>
 
-      {/* RESUMEN */}
-      {resumen && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {[
-            { label: "Total", value: resumen.totalArticulos, color: "text-zinc-100" },
-            { label: "Publicados", value: resumen.publicados, color: "text-emerald-400" },
-            { label: "En Revisión", value: resumen.enRevision, color: "text-amber-400" },
-            { label: "Obsolescentes", value: resumen.obsoletos, color: "text-red-400" },
-            { label: "Rating Prom.", value: resumen.ratingPromedio.toFixed(1), color: "text-blue-400" },
-          ].map(s => (
-            <div key={s.label} className="bg-neutral-950 border border-zinc-800 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold ${s.color}">{s.value}</p>
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">{s.label}</p>
+      {/* BUSCADOR */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+          <input value={query} onChange={e => setQuery(e.target.value)} autoFocus
+            placeholder="Buscar artículos por título, descripción, categoría..."
+            className="w-full pl-10 pr-4 py-2.5 bg-neutral-950 border border-zinc-800 rounded-lg text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
+        </div>
+        {isSearching && (
+          <button onClick={limpiarBusqueda} className="flex items-center gap-1 px-3 py-2.5 border border-zinc-700 rounded-lg text-zinc-400 text-sm hover:text-zinc-200">
+            <XCircle className="w-4 h-4" /> Limpiar
+          </button>
+        )}
+      </div>
+
+      {/* LISTA */}
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+        </div>
+      ) : articulos.length > 0 ? (
+        <div className="bg-neutral-950 border border-zinc-800 rounded-xl divide-y divide-zinc-800/50">
+          <div className="px-4 py-2 text-xs text-zinc-500 uppercase tracking-widest bg-zinc-900/50 rounded-t-xl">
+            {articulos.length} artículo{articulos.length !== 1 ? "s" : ""}
+          </div>
+          {articulos.map(a => (
+            <div key={a.id} className="px-4 py-3 flex items-start justify-between hover:bg-amber-500/5 transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <h3 className="text-zinc-100 font-medium text-sm truncate">{a.titulo}</h3>
+                  <span className={`px-1.5 py-0.5 rounded border text-[10px] uppercase ${moduloColors[a.moduloOrigen] || ""}`}>{moduloLabels[a.moduloOrigen] || a.moduloOrigen}</span>
+                  {'tipoArticulo' in a && <span className="px-1.5 py-0.5 rounded border text-[10px] bg-zinc-800 border-zinc-700 text-zinc-400">{tipoArticuloLabels[(a as any).tipoArticulo] || (a as any).tipoArticulo}</span>}
+                  {'estado' in a && <span className="px-1.5 py-0.5 rounded border text-[10px] bg-zinc-800 border-zinc-700 text-zinc-400">{estadoArticuloLabels[(a as any).estado] || (a as any).estado}</span>}
+                </div>
+                <p className="text-zinc-400 text-xs line-clamp-1">{a.descripcion}</p>
+                <div className="flex items-center gap-3 text-[10px] text-zinc-600 mt-1">
+                  <span className="text-emerald-400">👍 {a.likes}</span>
+                  <span className="text-red-400">👎 {a.dislikes}</span>
+                  <span>⭐ {a.rating.toFixed(1)} ({(a as any).totalVotos ?? 0})</span>
+                  <span>👤 {(a as any).creadoPor || "—"}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-3 shrink-0">
+                <button onClick={() => verDetalle(a.id)} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-amber-400" title="Ver"><Eye className="w-3.5 h-3.5" /></button>
+                <button onClick={() => votarArticulo(a.id, "LIKE")} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-emerald-400" title="Like"><ThumbsUp className="w-3.5 h-3.5" /></button>
+                <button onClick={() => votarArticulo(a.id, "DISLIKE")} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-red-400" title="Dislike"><ThumbsDown className="w-3.5 h-3.5" /></button>
+                <button onClick={() => eliminarArticulo(a.id)} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-red-400" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
             </div>
           ))}
         </div>
-      )}
-
-      {/* CONTENIDO PRINCIPAL */}
-      {vista === "busqueda" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            {/* BÚSQUEDA */}
-            <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4"><Search className="w-5 h-5 text-amber-500" /><h2 className="text-lg font-semibold text-zinc-100">Búsqueda de Artículos</h2></div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input type="text" placeholder="Buscar 'horno', 'cocina', 'mesa'..." value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && abrirBaseConocimiento()}
-                    className="w-full pl-9 pr-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50" />
-                </div>
-                <button onClick={abrirBaseConocimiento} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-500 text-sm uppercase tracking-widest hover:bg-amber-500/20"><Search className="w-4 h-4" /> Buscar</button>
-              </div>
-              {loading ? (
-                <div className="flex justify-center py-8"><div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" /></div>
-              ) : moduloActivo && sugerencias.length === 0 ? (
-                <div className="flex flex-col items-center py-8"><MessageSquare className="w-12 h-12 text-zinc-700" /><p className="text-sm text-zinc-500 uppercase tracking-widest mt-3">Sin artículos en <span className={`font-medium ${moduloColors[moduloActivo]}`}>{moduloLabels[moduloActivo]}</span></p></div>
-              ) : moduloActivo && sugerencias.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-sm text-zinc-500 uppercase tracking-widest">Artículos de <span className={`font-semibold ${moduloColors[moduloActivo]}`}>{moduloLabels[moduloActivo]}</span> ({sugerencias.length})</h3>
-                    <button onClick={() => { setModuloActivo(null); setSugerencias([]); setSearchTerm(""); }} className="text-xs text-zinc-600 hover:text-amber-400">
-                      Limpiar filtro
-                    </button>
-                  </div>
-                  {sugerencias.map(renderCard)}
-                </div>
-              ) : sugerencias.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  <h3 className="text-sm text-zinc-500 uppercase tracking-widest">Resultados ({sugerencias.length})</h3>
-                  {sugerencias.map(renderCard)}
-                </div>
-              ) : searchTerm ? (
-                <div className="flex flex-col items-center py-8"><Search className="w-12 h-12 text-zinc-700" /><p className="text-sm text-zinc-500 uppercase tracking-widest mt-3">Sin resultados</p></div>
-              ) : null}
-            </div>
-
-            {/* SUGERENCIAS POR CONTEXTO */}
-            <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4"><Lightbulb className="w-5 h-5 text-amber-500" /><h2 className="text-lg font-semibold text-zinc-100">Sugerencias por Contexto</h2></div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input type="text" placeholder="Ej: 'mesa caliente', 'pedido urgente', 'reserva'" value={contextoBusqueda}
-                    onChange={(e) => setContextoBusqueda(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && obtenerSugerenciasPorContexto()}
-                    className="w-full pl-9 pr-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50" />
-                </div>
-                <button onClick={obtenerSugerenciasPorContexto} className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-500 text-sm uppercase tracking-widest hover:bg-amber-500/20"><Lightbulb className="w-4 h-4" /> Sugerir</button>
-              </div>
-              {sugerenciaPorContexto.length > 0 && (
-                <div className="mt-4 space-y-3">
-                  <h3 className="text-sm text-zinc-500 uppercase tracking-widest">Sugerencias para: "{contextoBusqueda}"</h3>
-                  {sugerenciaPorContexto.map(renderCard)}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* SIDEBAR */}
-          <div className="space-y-6">
-            <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4"><ArrowUpCircle className="w-5 h-5 text-amber-500" /><h2 className="text-lg font-semibold text-zinc-100">¡Contribuir!</h2></div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-neutral-900 rounded-lg border border-zinc-800"><Save className="w-4 h-4 text-zinc-500" /><span className="text-sm text-zinc-400">Guardar solución al cerrar incidente</span></div>
-                <div className="flex items-center gap-3 p-3 bg-neutral-900 rounded-lg border border-zinc-800"><TrendingUp className="w-4 h-4 text-zinc-500" /><span className="text-sm text-zinc-400">Compartir mejores prácticas</span></div>
-                <div className="flex items-center gap-3 p-3 bg-neutral-900 rounded-lg border border-zinc-800"><ClipboardList className="w-4 h-4 text-zinc-500" /><span className="text-sm text-zinc-400">Crear artículos de capacitación</span></div>
-              </div>
-              {incidentes.filter(i => i.estado === "RESOLVER").slice(0, 3).length > 0 && (
-                <div className="mt-4">
-                  <h3 className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Tus contribuciones</h3>
-                  {incidentes.filter(i => i.estado === "RESOLVER").slice(0, 3).map(i => (
-                    <div key={i.id} className="border border-zinc-800 rounded-lg p-2 mb-2"><p className="text-xs text-zinc-300">{i.resumenProblema}</p></div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4"><MessageSquare className="w-5 h-5 text-amber-500" /><h2 className="text-lg font-semibold text-zinc-100">Por Módulo</h2></div>
-              <div className="space-y-2">
-                {Object.entries(moduloLabels).map(([key, label]) => (
-                  <button key={key} onClick={() => sugerenciasPorModulo(key)}
-                    className={`w-full text-left p-3 rounded-lg border transition-colors ${moduloActivo === key ? `${moduloColors[key]} border-current` : "bg-neutral-900 border-zinc-800 hover:bg-amber-500/5"}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm font-medium ${moduloActivo === key ? "" : moduloColors[key]}`}>{label}</span>
-                      {moduloActivo === key && <span className="text-[10px] uppercase tracking-widest opacity-70">Activo</span>}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-              <div className="flex items-center gap-2 mb-4"><BarChart3 className="w-5 h-5 text-amber-500" /><h2 className="text-lg font-semibold text-zinc-100">Alimentación Rápida</h2></div>
-              <div className="space-y-2">
-                <button onClick={() => baseConocimientoService.alimentarDesdeCapacidad("cpu", "80%", "Escalar servidor")} className="w-full text-left p-2 bg-neutral-900 rounded text-xs text-zinc-400 hover:text-amber-400">Desde Capacidad</button>
-                <button onClick={() => baseConocimientoService.alimentarDesdeMonitoreo("Alerta CPU", "90%", "Reiniciar servicio")} className="w-full text-left p-2 bg-neutral-900 rounded text-xs text-zinc-400 hover:text-amber-400">Desde Monitoreo</button>
-                <button onClick={() => baseConocimientoService.alimentarDesdeContinuidad("DRP v2", "equipo@mail.com", "1. Backup 2. Restore")} className="w-full text-left p-2 bg-neutral-900 rounded text-xs text-zinc-400 hover:text-amber-400">Desde Continuidad</button>
-              </div>
-            </div>
-          </div>
+      ) : (
+        <div className="flex flex-col items-center py-16 bg-neutral-950 border border-zinc-800 rounded-xl">
+          <FileText className="w-12 h-12 text-zinc-700" />
+          <p className="text-sm text-zinc-500 uppercase tracking-widest mt-3">No hay artículos. ¡Crea uno!</p>
         </div>
       )}
 
-      {/* LISTADO */}
-      {vista === "listado" && (
-        <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-zinc-100">Todos los Artículos ({articulos.length})</h2>
-          </div>
-          {loading ? (
-            <div className="flex justify-center py-8"><div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" /></div>
-          ) : articulos.length === 0 ? (
-            <div className="text-center py-8"><p className="text-sm text-zinc-500 uppercase tracking-widest">No hay artículos</p></div>
-          ) : (
+      {/* MODAL CREAR */}
+      {showCrear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowCrear(false)}>
+          <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-zinc-100">Nuevo Artículo</h2>
+              <button onClick={() => setShowCrear(false)} className="text-zinc-500 hover:text-zinc-300"><X className="w-5 h-5" /></button>
+            </div>
             <div className="space-y-3">
-              {articulos.map(a => (
-                <div key={a.id} className="border border-zinc-800 rounded-lg p-4 hover:bg-amber-500/5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h3 className="text-zinc-100 font-medium">{a.titulo}</h3>
-                        <span className={`px-2 py-0.5 rounded border text-xs ${moduloColors[a.moduloOrigen] || ""}`}>{moduloLabels[a.moduloOrigen] || a.moduloOrigen}</span>
-                        <span className="px-2 py-0.5 rounded border text-xs bg-zinc-800 border-zinc-700 text-zinc-400">{tipoArticuloLabels[a.tipoArticulo] || a.tipoArticulo}</span>
-                        <span className="px-2 py-0.5 rounded border text-xs bg-zinc-800 border-zinc-700 text-zinc-400">{estadoArticuloLabels[a.estado] || a.estado}</span>
-                      </div>
-                      <p className="text-zinc-400 text-sm line-clamp-1">{a.descripcion}</p>
-                      <div className="flex items-center gap-3 text-xs text-zinc-500 mt-2">
-                        <span>⭐ {a.rating}/5 ({a.totalVotos} votos)</span>
-                        <span>✅ {a.vecesResuelto} resuelto</span>
-                        <span>👤 {a.creadoPor || "—"}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 ml-3">
-                      <button onClick={() => verDetalle(a.id)} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-amber-400" title="Ver detalle"><Eye className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => votarArticulo(a.id)} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-amber-400" title="Votar 5 estrellas"><ThumbsUp className="w-3.5 h-3.5" /></button>
-                      <select onChange={(e) => cambiarEstado(a.id, e.target.value)} className="bg-neutral-900 border border-zinc-700 rounded px-1 py-1 text-xs text-zinc-400" title="Cambiar estado">
-                        <option value="">Estado</option>
-                        {Object.keys(estadoArticuloLabels).map(k => <option key={k} value={k}>{estadoArticuloLabels[k]}</option>)}
-                      </select>
-                      <button onClick={() => eliminarArticulo(a.id)} className="p-1.5 rounded border border-zinc-700 text-zinc-500 hover:text-red-400" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* CREAR */}
-      {vista === "crear" && (
-        <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6 max-w-2xl">
-          <h2 className="text-lg font-semibold text-zinc-100 mb-4">Crear Nuevo Artículo</h2>
-          <div className="space-y-4">
-            <input placeholder="Título *" value={crearForm.titulo} onChange={(e) => setCrearForm({ ...crearForm, titulo: e.target.value })}
-              className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
-            <textarea placeholder="Descripción *" value={crearForm.descripcion} onChange={(e) => setCrearForm({ ...crearForm, descripcion: e.target.value })} rows={3}
-              className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
-            <textarea placeholder="Solución (opcional)" value={crearForm.solucion || ""} onChange={(e) => setCrearForm({ ...crearForm, solucion: e.target.value })} rows={2}
-              className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
-            <div className="grid grid-cols-2 gap-3">
-              <select value={crearForm.tipoArticulo} onChange={(e) => setCrearForm({ ...crearForm, tipoArticulo: e.target.value })}
-                className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-sm">
-                {Object.entries(tipoArticuloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-              <select value={crearForm.moduloOrigen} onChange={(e) => setCrearForm({ ...crearForm, moduloOrigen: e.target.value })}
-                className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-sm">
-                {Object.entries(moduloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </div>
-            <input placeholder="Categoría (ej: COMANDAS)" value={crearForm.categoria || ""} onChange={(e) => setCrearForm({ ...crearForm, categoria: e.target.value })}
-              className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm" />
-            <div className="flex items-center gap-4 text-sm text-zinc-400">
-              <label className="flex items-center gap-2"><input type="checkbox" checked={crearForm.afectaCocina || false} onChange={(e) => setCrearForm({ ...crearForm, afectaCocina: e.target.checked })} /> Afecta Cocina</label>
-              <label className="flex items-center gap-2"><input type="checkbox" checked={crearForm.afectaSalon || false} onChange={(e) => setCrearForm({ ...crearForm, afectaSalon: e.target.checked })} /> Afecta Salón</label>
-              <label className="flex items-center gap-2"><input type="checkbox" checked={crearForm.afectaReservas || false} onChange={(e) => setCrearForm({ ...crearForm, afectaReservas: e.target.checked })} /> Afecta Reservas</label>
-            </div>
-            <button onClick={crearArticulo} disabled={!crearForm.titulo || !crearForm.descripcion}
-              className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg disabled:opacity-50">
-              Crear Artículo
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* DETALLE */}
-      {vista === "detalle" && selectedArticulo && (
-        <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-zinc-100">{selectedArticulo.titulo}</h2>
-              <div className="flex items-center gap-2 mt-2">
-                <span className={`px-2 py-0.5 rounded border text-xs ${moduloColors[selectedArticulo.moduloOrigen] || ""}`}>{moduloLabels[selectedArticulo.moduloOrigen] || selectedArticulo.moduloOrigen}</span>
-                <span className="px-2 py-0.5 rounded border text-xs bg-zinc-800 border-zinc-700 text-zinc-400">{tipoArticuloLabels[selectedArticulo.tipoArticulo]}</span>
-                <span className="px-2 py-0.5 rounded border text-xs bg-zinc-800 border-zinc-700 text-zinc-400">{estadoArticuloLabels[selectedArticulo.estado]}</span>
+              <input placeholder="Título *" value={crearForm.titulo} onChange={e => setCrearForm({ ...crearForm, titulo: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
+              <textarea placeholder="Descripción *" value={crearForm.descripcion} onChange={e => setCrearForm({ ...crearForm, descripcion: e.target.value })} rows={3}
+                className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
+              <textarea placeholder="Solución *" value={crearForm.solucion || ""} onChange={e => setCrearForm({ ...crearForm, solucion: e.target.value })} rows={5}
+                className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm focus:outline-none focus:border-amber-500/50" />
+              <div className="grid grid-cols-2 gap-3">
+                <select value={crearForm.tipoArticulo} onChange={e => setCrearForm({ ...crearForm, tipoArticulo: e.target.value })}
+                  className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-sm">
+                  {Object.entries(tipoArticuloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                <select value={crearForm.moduloOrigen} onChange={e => setCrearForm({ ...crearForm, moduloOrigen: e.target.value })}
+                  className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-sm">
+                  {Object.entries(moduloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
               </div>
+              <input placeholder="Categoría (ej: COMANDAS)" value={crearForm.categoria || ""} onChange={e => setCrearForm({ ...crearForm, categoria: e.target.value })}
+                className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm" />
+              <div className="flex items-center gap-4 text-sm text-zinc-400">
+                <label className="flex items-center gap-2"><input type="checkbox" checked={crearForm.afectaCocina || false} onChange={e => setCrearForm({ ...crearForm, afectaCocina: e.target.checked })} /> Cocina</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={crearForm.afectaSalon || false} onChange={e => setCrearForm({ ...crearForm, afectaSalon: e.target.checked })} /> Salón</label>
+                <label className="flex items-center gap-2"><input type="checkbox" checked={crearForm.afectaReservas || false} onChange={e => setCrearForm({ ...crearForm, afectaReservas: e.target.checked })} /> Reservas</label>
+              </div>
+              <div className="text-xs text-zinc-500">Creado por: <span className="text-zinc-300 font-medium">{crearForm.creadoPor || "—"}</span></div>
+              <button onClick={crearArticulo} disabled={!crearForm.titulo || !crearForm.descripcion}
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg disabled:opacity-50 text-sm">
+                Guardar Artículo
+              </button>
             </div>
-            <button onClick={() => setVista("listado")} className="text-xs text-zinc-500 hover:text-amber-400 uppercase tracking-widest">← Volver</button>
           </div>
-          <div className="space-y-4">
-            <div><h4 className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Descripción</h4><p className="text-zinc-300 text-sm">{selectedArticulo.descripcion}</p></div>
-            {selectedArticulo.solucion && <div><h4 className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Solución</h4><p className="text-zinc-300 text-sm">{selectedArticulo.solucion}</p></div>}
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div className="bg-neutral-900 rounded-lg p-3"><p className="text-xs text-zinc-500">Rating</p><p className="text-zinc-100 font-medium">⭐ {selectedArticulo.rating}/5 ({selectedArticulo.totalVotos} votos)</p></div>
-              <div className="bg-neutral-900 rounded-lg p-3"><p className="text-xs text-zinc-500">Veces Resuelto</p><p className="text-zinc-100 font-medium">{selectedArticulo.vecesResuelto}</p></div>
-              <div className="bg-neutral-900 rounded-lg p-3"><p className="text-xs text-zinc-500">Creado por</p><p className="text-zinc-100 font-medium">{selectedArticulo.creadoPor || "—"}</p></div>
+        </div>
+      )}
+
+      {/* MODAL DETALLE / EDICIÓN */}
+      {detalle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setDetalle(null); setEditando(false); }}>
+          <div className="bg-neutral-950 border border-zinc-800 rounded-xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-zinc-100">{editando ? "Editar Artículo" : detalle.titulo}</h2>
+              <button onClick={() => { setDetalle(null); setEditando(false); }} className="text-zinc-500 hover:text-zinc-300"><X className="w-5 h-5" /></button>
             </div>
-            {selectedArticulo.tags?.length > 0 && (
-              <div><h4 className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Tags</h4><div className="flex gap-2">{selectedArticulo.tags.map(t => <span key={t} className="px-2 py-0.5 bg-zinc-800 rounded text-xs text-zinc-400">{t}</span>)}</div></div>
+
+            {editando ? (
+              <div className="space-y-3">
+                <input placeholder="Título" value={editForm.titulo} onChange={e => setEditForm({ ...editForm, titulo: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm" />
+                <textarea placeholder="Descripción" value={editForm.descripcion} onChange={e => setEditForm({ ...editForm, descripcion: e.target.value })} rows={3}
+                  className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm" />
+                <textarea placeholder="Solución" value={editForm.solucion || ""} onChange={e => setEditForm({ ...editForm, solucion: e.target.value })} rows={3}
+                  className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm" />
+                <div className="grid grid-cols-2 gap-3">
+                  <select value={editForm.tipoArticulo} onChange={e => setEditForm({ ...editForm, tipoArticulo: e.target.value })}
+                    className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-sm">
+                    {Object.entries(tipoArticuloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                  <select value={editForm.moduloOrigen} onChange={e => setEditForm({ ...editForm, moduloOrigen: e.target.value })}
+                    className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 text-sm">
+                    {Object.entries(moduloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <input placeholder="Categoría" value={editForm.categoria || ""} onChange={e => setEditForm({ ...editForm, categoria: e.target.value })}
+                  className="w-full px-3 py-2 bg-neutral-900 border border-zinc-800 rounded text-zinc-100 text-sm" />
+                <div className="flex items-center gap-4 text-sm text-zinc-400">
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={editForm.afectaCocina || false} onChange={e => setEditForm({ ...editForm, afectaCocina: e.target.checked })} /> Cocina</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={editForm.afectaSalon || false} onChange={e => setEditForm({ ...editForm, afectaSalon: e.target.checked })} /> Salón</label>
+                  <label className="flex items-center gap-2"><input type="checkbox" checked={editForm.afectaReservas || false} onChange={e => setEditForm({ ...editForm, afectaReservas: e.target.checked })} /> Reservas</label>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={guardarEdicion} disabled={!editForm.titulo || !editForm.descripcion}
+                    className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg disabled:opacity-50 text-sm">Guardar Cambios</button>
+                  <button onClick={() => setEditando(false)} className="px-4 py-2 border border-zinc-700 rounded-lg text-zinc-300 text-sm hover:bg-zinc-800">Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className={`px-2 py-0.5 rounded border text-xs ${moduloColors[detalle.moduloOrigen] || ""}`}>{moduloLabels[detalle.moduloOrigen] || detalle.moduloOrigen}</span>
+                  <span className="px-2 py-0.5 rounded border text-xs bg-zinc-800 border-zinc-700 text-zinc-400">{tipoArticuloLabels[detalle.tipoArticulo]}</span>
+                  <select value={detalle.estado} onChange={async e => { try { const a = await baseConocimientoService.cambiarEstado(detalle.id, e.target.value); setDetalle(a); await listarArticulos(); } catch (err) { console.error(err); } }}
+                    className="px-2 py-0.5 rounded border text-xs bg-zinc-800 border-zinc-700 text-zinc-300 cursor-pointer">
+                    {Object.entries(estadoArticuloLabels).map(([k, v]) => <option key={k} value={k} className="bg-zinc-800">{v}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div><p className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Descripción</p><p className="text-zinc-300">{detalle.descripcion}</p></div>
+                  {detalle.solucion && (() => { const pasos = detalle.solucion!.split(/(?=\d+\.\s)/).filter(s => s.trim()); return <div><p className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Solución</p><ol className="list-decimal list-inside text-zinc-300 space-y-1">{pasos.map((p, i) => <li key={i} className="text-sm">{p.replace(/^\d+\.\s*/, '')}</li>)}</ol></div>; })()}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-neutral-900 rounded-lg p-2"><p className="text-[10px] text-zinc-500">Rating</p><p className="text-zinc-100 font-medium">⭐ {detalle.rating.toFixed(1)}</p></div>
+                    <div className="bg-neutral-900 rounded-lg p-2"><p className="text-[10px] text-zinc-500">Votos</p><p className="text-zinc-100 font-medium"><span className="text-emerald-400">👍 {detalle.likes}</span> <span className="text-red-400">👎 {detalle.dislikes}</span></p></div>
+                    <div className="bg-neutral-900 rounded-lg p-2"><p className="text-[10px] text-zinc-500">Creado por</p><p className="text-zinc-100 font-medium truncate">{detalle.creadoPor || "—"}</p></div>
+                  </div>
+                  <button onClick={iniciarEdicion} className="w-full py-2 border border-amber-500/30 text-amber-500 rounded-lg text-sm hover:bg-amber-500/10">Editar Artículo</button>
+                </div>
+              </>
             )}
-            <div className="flex gap-2">
-              <select onChange={(e) => e.target.value && cambiarEstado(selectedArticulo.id, e.target.value)} className="bg-neutral-900 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300">
-                <option value="">Cambiar estado...</option>
-                {Object.entries(estadoArticuloLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-              <button onClick={() => votarArticulo(selectedArticulo.id)} className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-500 text-xs uppercase">Votar 5⭐</button>
-            </div>
           </div>
         </div>
       )}

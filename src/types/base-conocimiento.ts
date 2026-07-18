@@ -12,8 +12,8 @@ export interface SugerenciaDTO {
   categoria: string;
   relevancia: number;
   rating: number;
-  vecesResuelto: number;
-  tags: string[];
+  likes: number;
+  dislikes: number;
   moduloOrigen: string;
   afectaCocina: boolean;
   afectaSalon: boolean;
@@ -22,9 +22,7 @@ export interface SugerenciaDTO {
 
 export interface BusquedaRequestDTO {
   query?: string | null;
-  ingrediente?: string | null;
   categoria?: string | null;
-  tags?: string[] | null;
   afectaCocina?: boolean | null;
   afectaSalon?: boolean | null;
   afectaReservas?: boolean | null;
@@ -42,14 +40,13 @@ export interface ArticuloKBSDTO {
   moduloOrigen: string;
   estado: string;
   categoria: string;
-  tags: string[];
-  vecesResuelto: number;
   rating: number;
   totalVotos: number;
+  likes: number;
+  dislikes: number;
   afectaCocina: boolean;
   afectaSalon: boolean;
   afectaReservas: boolean;
-  ingredientesRelacionados: string;
   creadoPor: string;
   fechaCreacion: string;
   fechaActualizacion: string;
@@ -62,14 +59,10 @@ export interface CrearArticuloDTO {
   tipoArticulo: string;
   moduloOrigen: string;
   categoria?: string;
-  tags?: string[];
   afectaCocina?: boolean;
   afectaSalon?: boolean;
   afectaReservas?: boolean;
-  ingredientesRelacionados?: string;
-  idOrigen?: number;
   creadoPor?: string;
-  rolCreador?: string;
 }
 
 export interface ResumenKBSDTO {

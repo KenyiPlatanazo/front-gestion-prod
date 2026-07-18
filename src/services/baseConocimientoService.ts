@@ -66,8 +66,8 @@ class BaseConocimientoService {
     return this.request(`${API}/${id}/estado?estado=${encodeURIComponent(estado)}`, { method: 'PATCH' });
   }
 
-  async votar(id: number, estrellas: number): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/${id}/votar?estrellas=${estrellas}`, { method: 'POST' });
+  async votar(id: number, tipo: string): Promise<ArticuloKBSDTO> {
+    return this.request(`${API}/${id}/votar?tipo=${tipo}`, { method: 'POST' });
   }
 
   async obtenerResumen(): Promise<ResumenKBSDTO> {
