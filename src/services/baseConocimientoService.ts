@@ -28,79 +28,79 @@ class BaseConocimientoService {
 
   // ==================== BUSQUEDA ====================
   async buscar(data: BusquedaRequestDTO): Promise<SugerenciaDTO[]> {
-    return this.request(`${API}/busqueda`, {
+    return this.request(`${API}/base-conocimiento/busqueda`, {
       method: 'POST', body: JSON.stringify(data),
     });
   }
 
   async sugerirPorContexto(contexto: string): Promise<SugerenciaDTO[]> {
-    return this.request(`${API}/busqueda/sugerir?contexto=${encodeURIComponent(contexto)}`);
+    return this.request(`${API}/base-conocimiento/busqueda/sugerir?contexto=${encodeURIComponent(contexto)}`);
   }
 
   async sugerirPorModulo(modulo: string): Promise<SugerenciaDTO[]> {
-    return this.request(`${API}/busqueda/sugerir/por-modulo?modulo=${encodeURIComponent(modulo)}`);
+    return this.request(`${API}/base-conocimiento/busqueda/sugerir/por-modulo?modulo=${encodeURIComponent(modulo)}`);
   }
 
   async sugerirAlCerrarIncidente(incidenteId: number, categoria: string): Promise<SugerenciaDTO[]> {
-    return this.request(`${API}/busqueda/sugerir/al-cierre-incidente?incidenteId=${incidenteId}&categoria=${encodeURIComponent(categoria)}`);
+    return this.request(`${API}/base-conocimiento/busqueda/sugerir/al-cierre-incidente?incidenteId=${incidenteId}&categoria=${encodeURIComponent(categoria)}`);
   }
 
   // ==================== CRUD ARTÍCULOS ====================
   async listarTodos(): Promise<ArticuloKBSDTO[]> {
-    return this.request(API);
+    return this.request(`${API}/base-conocimiento`);
   }
 
   async obtenerPorId(id: number): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/${id}`);
+    return this.request(`${API}/base-conocimiento/${id}`);
   }
 
   async crear(dto: CrearArticuloDTO): Promise<ArticuloKBSDTO> {
-    return this.request(API, { method: 'POST', body: JSON.stringify(dto) });
+    return this.request(`${API}/base-conocimiento`, { method: 'POST', body: JSON.stringify(dto) });
   }
 
   async actualizar(id: number, dto: CrearArticuloDTO): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
+    return this.request(`${API}/base-conocimiento/${id}`, { method: 'PUT', body: JSON.stringify(dto) });
   }
 
   async cambiarEstado(id: number, estado: string): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/${id}/estado?estado=${encodeURIComponent(estado)}`, { method: 'PATCH' });
+    return this.request(`${API}/base-conocimiento/${id}/estado?estado=${encodeURIComponent(estado)}`, { method: 'PATCH' });
   }
 
   async votar(id: number, tipo: string): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/${id}/votar?tipo=${tipo}`, { method: 'POST' });
+    return this.request(`${API}/base-conocimiento/${id}/votar?tipo=${tipo}`, { method: 'POST' });
   }
 
   async obtenerResumen(): Promise<ResumenKBSDTO> {
-    return this.request(`${API}/resumen`);
+    return this.request(`${API}/base-conocimiento/resumen`);
   }
 
   async eliminar(id: number): Promise<void> {
-    await fetch(`${API}/${id}`, { method: 'DELETE', headers: this.getHeaders() });
+    await fetch(`${API}/base-conocimiento/${id}`, { method: 'DELETE', headers: this.getHeaders() });
   }
 
   // ==================== ALIMENTACIÓN ====================
   async alimentarDesdeIncidente(dto: IncidenteCierreDTO): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/alimentacion/incidente`, { method: 'POST', body: JSON.stringify(dto) });
+    return this.request(`${API}/base-conocimiento/alimentacion/incidente`, { method: 'POST', body: JSON.stringify(dto) });
   }
 
   async alimentarDesdeCambio(dto: CambioCierreDTO): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/alimentacion/cambio`, { method: 'POST', body: JSON.stringify(dto) });
+    return this.request(`${API}/base-conocimiento/alimentacion/cambio`, { method: 'POST', body: JSON.stringify(dto) });
   }
 
   async alimentarDesdeSolicitud(dto: SolicitudRelevanteDTO): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/alimentacion/solicitud`, { method: 'POST', body: JSON.stringify(dto) });
+    return this.request(`${API}/base-conocimiento/alimentacion/solicitud`, { method: 'POST', body: JSON.stringify(dto) });
   }
 
   async alimentarDesdeCapacidad(metrica: string, proyeccion: string, recomendacion: string): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/alimentacion/capacidad?metrica=${encodeURIComponent(metrica)}&proyeccion=${encodeURIComponent(proyeccion)}&recomendacion=${encodeURIComponent(recomendacion)}`, { method: 'POST' });
+    return this.request(`${API}/base-conocimiento/alimentacion/capacidad?metrica=${encodeURIComponent(metrica)}&proyeccion=${encodeURIComponent(proyeccion)}&recomendacion=${encodeURIComponent(recomendacion)}`, { method: 'POST' });
   }
 
   async alimentarDesdeMonitoreo(tipoEvento: string, umbral: string, accionCorrectiva: string): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/alimentacion/monitoreo?tipoEvento=${encodeURIComponent(tipoEvento)}&umbral=${encodeURIComponent(umbral)}&accionCorrectiva=${encodeURIComponent(accionCorrectiva)}`, { method: 'POST' });
+    return this.request(`${API}/base-conocimiento/alimentacion/monitoreo?tipoEvento=${encodeURIComponent(tipoEvento)}&umbral=${encodeURIComponent(umbral)}&accionCorrectiva=${encodeURIComponent(accionCorrectiva)}`, { method: 'POST' });
   }
 
   async alimentarDesdeContinuidad(procedimiento: string, contactos: string, checklist: string): Promise<ArticuloKBSDTO> {
-    return this.request(`${API}/alimentacion/continuidad?procedimiento=${encodeURIComponent(procedimiento)}&contactos=${encodeURIComponent(contactos)}&checklist=${encodeURIComponent(checklist)}`, { method: 'POST' });
+    return this.request(`${API}/base-conocimiento/alimentacion/continuidad?procedimiento=${encodeURIComponent(procedimiento)}&contactos=${encodeURIComponent(contactos)}&checklist=${encodeURIComponent(checklist)}`, { method: 'POST' });
   }
 }
 
