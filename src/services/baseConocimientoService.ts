@@ -4,7 +4,7 @@ import {
   IncidenteCierreDTO, CambioCierreDTO, SolicitudRelevanteDTO
 } from '@/types/base-conocimiento';
 
-const API = process.env.NEXT_PUBLIC_BASE_CONOCIMIENTO_URL || 'http://localhost:8090/api/base-conocimiento';
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8090/api/base-conocimiento';
 
 class BaseConocimientoService {
   private getHeaders(): HeadersInit {
