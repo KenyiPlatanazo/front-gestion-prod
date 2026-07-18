@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { incidenteService } from '@/services/incidenteService';
 import { Incidente, CrearIncidenteDTO } from '@/types/incidente';
 import { useAuth } from './AuthContext';
@@ -26,7 +26,7 @@ export function IncidenteProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
 
-  const listarIncidentes = async () => {
+  const listarIncidentes = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
     try {
@@ -38,7 +38,7 @@ export function IncidenteProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   const crearIncidente = async (data: CrearIncidenteDTO): Promise<Incidente | null> => {
     setIsLoading(true);

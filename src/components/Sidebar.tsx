@@ -1,6 +1,6 @@
 "use client";
 
-import { User, ClipboardList, RefreshCw, AlertTriangle } from "lucide-react";
+import { User, ClipboardList, RefreshCw, AlertTriangle, BookOpen } from "lucide-react";
 import { useNavigation, type Section } from "@/context/NavigationContext";
 import { useAuth } from "@/context/AuthContext";
 import SidebarItem from "./SidebarItem";
@@ -11,6 +11,7 @@ const navItems: { id: Section; label: string; icon: typeof User }[] = [
   { id: "solicitudes", label: "Solicitudes", icon: ClipboardList },
   { id: "cambios", label: "Cambios", icon: RefreshCw },
   { id: "incidencias", label: "Incidencias", icon: AlertTriangle },
+  { id: "base-conocimiento", label: "Base de Conocimiento", icon: BookOpen },
 ];
 
 // AÑADIR NUEVA GESTIÓN AQUÍ - Agrega nuevos ítems al array navItems para futuras gestiones
